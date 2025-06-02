@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}PPT2PDF Converter - Converting{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Converting Your File</h1>
+    <p>Please wait while we convert your PowerPoint to PDF</p>
+</div>
+
+<div class="progress-container">
+    <div class="progress-text" id="statusMessage">Preparing conversion...</div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+    </div>
+    
+    <div class="progress-text">
+        <span id="progressPercent">0</span>% Complete
+    </div>
+    
+    <div class="spinner" id="spinner"></div>
+</div>
+
+<div id="completedSection" style="display: none;">
+    <div class="alert alert-success">
+        <strong>Conversion completed successfully!</strong><br>
+        Your PDF file is ready for download.
+    </div>
+    
+    <a href="#" id="downloadBtn" class="btn">
+        📥 Download PDF
+    </a>
+    
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+        Convert Another File
+    </a>
+</div>
+
+<div id="errorSection" style="display: none;">
+    <div class="alert alert-error" id="errorMessage">
+        An error occurred during conversion.
+    </div>
+    
+    <a href="{{ url_for('index') }}" class="btn">
+        Try Again
+    </a>
+</div>
+
+<div style="margin-top: 30px;">
+    <p style="color: #666; font-size: 0.9em;">
+        <strong>Note:</strong> Conversion time depends on the size and complexity of your PowerPoint file.
+        Large files with many slides may take several minutes to process.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const conversionId = '{{ conversion_id }}';
+    const statusMessage = document.getElementById('statusMessage');
+    const progressFill = document.getElementById('progressFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const spinner = document.getElementById('spinner');
+    const completedSection = document.getElementById('completedSection');
+    const errorSection = document.getElementById('errorSection');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    let pollInterval;
+    
+    function updateProgress(status) {
+        statusMessage.textContent = status.message || 'Processing...';
+        
+        const progress = status.progress || 0;
+        progressFill.style.width = progress + '%';
+        progressPercent.textContent = progress;
+        
+        if (status.status === 'completed') {
+            spinner.style.display = 'none';
+            completedSection.style.display = 'block';
+            downloadBtn.href = `/download/${conversionId}`;
+            clearInterval(pollInterval);
+        } else if (status.status === 'error') {
+            spinner.style.display = 'none';
+            errorSection.style.display = 'block';
+            errorMessage.innerHTML = `<strong>Error:</strong> ${status.message || 'Unknown error occurred'}`;
+            clearInterval(pollInterval);
+        }
+    }
+    
+    function pollStatus() {
+        fetch(`/status/${conversionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Status error:', data.error);
+                    return;
+                }
+                updateProgress(data);
+            })
+            .catch(error => {
+                console.error('Polling error:', error);
+                // Continue polling even if there's an error
+            });
+    }
+    
+    // Start polling immediately
+    pollStatus();
+    
+    // Poll every 2 seconds
+    pollInterval = setInterval(pollStatus, 2000);
+    
+    // Clean up interval when page is unloaded
+    window.addEventListener('beforeunload', function() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+    });
+    
+    // Auto-cleanup after download (optional)
+    downloadBtn.addEventListener('click', function() {
+        // Wait a bit then cleanup
+        setTimeout(function() {
+            fetch(`/cleanup/${conversionId}`)
+                .then(() => {
+                    console.log('Cleanup completed');
+                })
+                .catch(error => {
+                    console.error('Cleanup error:', error);
+                });
+        }, 5000); // 5 seconds delay to ensure download starts
+    });
+});
+</script>
+{% endblock %}
