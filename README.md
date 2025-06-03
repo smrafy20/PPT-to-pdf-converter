@@ -5,10 +5,12 @@ A simple and reliable web application to convert PowerPoint presentations (.ppt/
 ## Description
 
 This is a streamlined Flask web application that provides:
-- **Simple Upload Interface** - Drag & drop or click to upload PPT/PPTX files
+- **Multiple File Upload** - Upload single or multiple PPT/PPTX files at once
+- **Drag & Drop Interface** - Simple drag & drop or click to upload files
 - **Reliable PDF Conversion** - Direct PowerPoint COM automation for high-quality conversion
-- **Real-time Progress** - Monitor conversion progress in your browser
-- **Easy Download** - Download your converted PDF file instantly
+- **Batch Processing** - Convert multiple files in sequence with detailed progress tracking
+- **Real-time Progress** - Monitor conversion progress for each file in your browser
+- **Smart Downloads** - Single PDF download or ZIP file for multiple conversions
 - **Robust Error Handling** - Comprehensive validation and error reporting
 
 The application uses PowerPoint's built-in PDF export functionality through COM automation for maximum compatibility and reliability.
@@ -61,7 +63,7 @@ PPT2PDF/
 1. Install dependencies: `pip install -r requirements.txt`
 2. Run the web app: `python app.py`
 3. Open your browser to: `http://localhost:5000`
-4. Upload a PowerPoint file and convert it to PDF!
+4. Upload PowerPoint files (single or multiple) and convert them to PDF!
 
 ## Usage
 
@@ -76,20 +78,24 @@ PPT2PDF/
    ```
 
 3. Use the web interface to:
-   - Upload your PowerPoint file (.ppt or .pptx)
-   - Monitor conversion progress in real-time
-   - Download the converted PDF file
+   - Upload your PowerPoint files (.ppt or .pptx) - single or multiple
+   - Monitor batch conversion progress in real-time
+   - Download converted PDF files (single file or ZIP for multiple)
    - The web app handles file cleanup automatically
 
-## Example
+## Examples
 
-If you have a file named `presentation.pptx`:
-
+### Single File Conversion
 1. Upload `presentation.pptx` through the web interface
 2. Monitor the conversion progress in real-time
 3. Download `presentation.pdf` when conversion is complete
 
-The PDF will contain all slides with original formatting and quality preserved.
+### Multiple File Conversion
+1. Upload multiple files: `presentation1.pptx`, `presentation2.ppt`, `presentation3.pptx`
+2. Monitor the batch conversion progress with individual file status
+3. Download a ZIP file containing all converted PDFs: `converted_pdfs_[timestamp].zip`
+
+The PDFs will contain all slides with original formatting and quality preserved.
 
 ## Features
 
@@ -102,11 +108,13 @@ The PDF will contain all slides with original formatting and quality preserved.
 - **Multiple Retry Attempts**: Tries different opening methods if initial attempt fails
 
 ### User Experience
-- **Real-time Progress**: Live updates during conversion process
-- **File Size Limits**: Supports files up to 50MB (configurable)
+- **Multiple File Upload**: Upload single or multiple files at once
+- **Real-time Progress**: Live updates during conversion process with individual file status
+- **File Size Limits**: Supports files up to 50MB each (configurable)
 - **Multiple Formats**: Supports both .ppt and .pptx files
-- **Drag & Drop**: Easy file upload interface
-- **Automatic Download**: PDF files are automatically prepared for download
+- **Drag & Drop**: Easy file upload interface for single or multiple files
+- **Smart Downloads**: Single PDF download or ZIP file for batch conversions
+- **Batch Processing**: Detailed progress tracking for each file in the batch
 
 ## Troubleshooting
 

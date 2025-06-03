@@ -20,18 +20,20 @@
     <div class="upload-area" id="uploadArea">
         <div class="upload-icon">📄</div>
         <div class="upload-text">
-            <strong>Click to select a PowerPoint file</strong><br>
-            or drag and drop it here
+            <strong>Click to select PowerPoint files</strong><br>
+            or drag and drop them here
         </div>
         <div class="upload-text" style="font-size: 0.9em; color: #999;">
-            Supported formats: .ppt, .pptx (Max size: 50MB)
+            Supported formats: .ppt, .pptx (Max size: 50MB each)<br>
+            You can select multiple files at once
         </div>
-        <input type="file" name="file" id="fileInput" class="file-input" accept=".ppt,.pptx" required>
+        <input type="file" name="files" id="fileInput" class="file-input" accept=".ppt,.pptx" multiple required>
     </div>
     
     <div id="fileInfo" class="file-info" style="display: none;">
-        <div class="file-name" id="fileName"></div>
-        <div class="file-size" id="fileSize"></div>
+        <div class="file-count" id="fileCount"></div>
+        <div class="file-list" id="fileList"></div>
+        <div class="total-size" id="totalSize"></div>
     </div>
     
     <button type="submit" class="btn" id="uploadBtn" disabled>
@@ -42,10 +44,10 @@
 <div style="margin-top: 30px;">
     <h3 style="color: #333; margin-bottom: 15px;">How it works:</h3>
     <div style="text-align: left; color: #666;">
-        <p>1. Select your PowerPoint file (.ppt or .pptx)</p>
+        <p>1. Select your PowerPoint files (.ppt or .pptx) - single or multiple</p>
         <p>2. Click "Convert to PDF" to start the conversion</p>
-        <p>3. Monitor the real-time progress</p>
-        <p>4. Download your high-quality PDF file</p>
+        <p>3. Monitor the real-time progress for all files</p>
+        <p>4. Download your high-quality PDF files (ZIP for multiple files)</p>
     </div>
 </div>
 {% endblock %}
@@ -57,8 +59,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
     const fileInfo = document.getElementById('fileInfo');
-    const fileName = document.getElementById('fileName');
-    const fileSize = document.getElementById('fileSize');
+    const fileCount = document.getElementById('fileCount');
+    const fileList = document.getElementById('fileList');
+    const totalSize = document.getElementById('totalSize');
     
     // Click to select file
     uploadArea.addEventListener('click', function() {
@@ -67,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // File selection handler
     fileInput.addEventListener('change', function() {
-        handleFileSelect(this.files[0]);
+        handleFileSelect(this.files);
     });
     
     // Drag and drop handlers
@@ -88,36 +91,58 @@ document.addEventListener('DOMContentLoaded', function() {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
-            handleFileSelect(files[0]);
+            handleFileSelect(files);
         }
     });
     
-    function handleFileSelect(file) {
-        if (file) {
-            // Check file type
+    function handleFileSelect(files) {
+        if (files && files.length > 0) {
             const allowedTypes = ['.ppt', '.pptx'];
-            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-            
-            if (!allowedTypes.includes(fileExtension)) {
-                alert('Please select a PowerPoint file (.ppt or .pptx)');
-                fileInput.value = '';
-                return;
-            }
-            
-            // Check file size (50MB limit)
             const maxSize = 50 * 1024 * 1024; // 50MB in bytes
-            if (file.size > maxSize) {
-                alert('File is too large. Maximum size is 50MB.');
-                fileInput.value = '';
-                return;
+            const validFiles = [];
+            const invalidFiles = [];
+            let totalFileSize = 0;
+
+            // Validate each file
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+                if (!allowedTypes.includes(fileExtension)) {
+                    invalidFiles.push(`${file.name}: Invalid file type`);
+                } else if (file.size > maxSize) {
+                    invalidFiles.push(`${file.name}: File too large (max 50MB)`);
+                } else {
+                    validFiles.push(file);
+                    totalFileSize += file.size;
+                }
             }
-            
+
+            // Show validation errors if any
+            if (invalidFiles.length > 0) {
+                alert('Some files are invalid:\n' + invalidFiles.join('\n'));
+                if (validFiles.length === 0) {
+                    fileInput.value = '';
+                    return;
+                }
+            }
+
             // Display file info
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
+            fileCount.textContent = `Selected ${validFiles.length} file(s)`;
+
+            // Create file list
+            fileList.innerHTML = '';
+            validFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.style.cssText = 'margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 3px; font-size: 0.9em;';
+                fileItem.innerHTML = `<strong>${file.name}</strong> (${formatFileSize(file.size)})`;
+                fileList.appendChild(fileItem);
+            });
+
+            totalSize.textContent = `Total size: ${formatFileSize(totalFileSize)}`;
             fileInfo.style.display = 'block';
-            uploadBtn.disabled = false;
-            
+            uploadBtn.disabled = validFiles.length === 0;
+
             // Update upload area
             uploadArea.style.borderColor = '#28a745';
             uploadArea.style.backgroundColor = '#f8fff9';

@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="header">
-    <h1>Converting Your File</h1>
-    <p>Please wait while we convert your PowerPoint to PDF</p>
+    <h1 id="headerTitle">Converting Your Files</h1>
+    <p id="headerSubtitle">Please wait while we convert your PowerPoint files to PDF</p>
 </div>
 
 <div class="progress-container">
@@ -20,20 +20,37 @@
     </div>
     
     <div class="spinner" id="spinner"></div>
+
+    <!-- Batch progress details -->
+    <div id="batchDetails" style="display: none; margin-top: 20px;">
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <div id="batchSummary"></div>
+            <div id="batchResults" style="margin-top: 10px;"></div>
+        </div>
+    </div>
 </div>
 
 <div id="completedSection" style="display: none;">
-    <div class="alert alert-success">
+    <div class="alert alert-success" id="successMessage">
         <strong>Conversion completed successfully!</strong><br>
-        Your PDF file is ready for download.
+        Your PDF files are ready for download.
     </div>
-    
-    <a href="#" id="downloadBtn" class="btn">
-        📥 Download PDF
-    </a>
-    
+
+    <!-- Batch download button -->
+    <div id="batchDownloadSection" style="margin-bottom: 20px;">
+        <a href="#" id="downloadBtn" class="btn">
+            📥 Download All as ZIP
+        </a>
+    </div>
+
+    <!-- Individual file downloads -->
+    <div id="individualDownloads" style="display: none;">
+        <h4 style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px;">Download Individual Files:</h4>
+        <div id="downloadList" style="margin-bottom: 20px;"></div>
+    </div>
+
     <a href="{{ url_for('index') }}" class="btn btn-secondary">
-        Convert Another File
+        Convert More Files
     </a>
 </div>
 
@@ -67,26 +84,156 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorSection = document.getElementById('errorSection');
     const downloadBtn = document.getElementById('downloadBtn');
     const errorMessage = document.getElementById('errorMessage');
+    const headerTitle = document.getElementById('headerTitle');
+    const headerSubtitle = document.getElementById('headerSubtitle');
+    const batchDetails = document.getElementById('batchDetails');
+    const batchSummary = document.getElementById('batchSummary');
+    const batchResults = document.getElementById('batchResults');
+    const successMessage = document.getElementById('successMessage');
+    const individualDownloads = document.getElementById('individualDownloads');
+    const downloadList = document.getElementById('downloadList');
+    const batchDownloadSection = document.getElementById('batchDownloadSection');
     
     let pollInterval;
     
     function updateProgress(status) {
         statusMessage.textContent = status.message || 'Processing...';
-        
+
         const progress = status.progress || 0;
         progressFill.style.width = progress + '%';
         progressPercent.textContent = progress;
-        
-        if (status.status === 'completed') {
+
+        // Handle batch mode
+        if (status.batch_mode) {
+            // Update header for batch
+            headerTitle.textContent = `Converting ${status.total_files} Files`;
+            headerSubtitle.textContent = 'Please wait while we convert your PowerPoint files to PDF';
+
+            // Show batch details
+            batchDetails.style.display = 'block';
+            batchSummary.innerHTML = `
+                <strong>Batch Progress:</strong><br>
+                Total files: ${status.total_files}<br>
+                Completed: ${status.completed_files || 0}<br>
+                Failed: ${status.failed_files || 0}
+            `;
+
+            // Show individual file results
+            if (status.results && status.results.length > 0) {
+                let resultsHtml = '<div style="margin-top: 10px;"><strong>File Results:</strong></div>';
+                status.results.forEach(result => {
+                    const statusIcon = result.status === 'success' ? '✅' : '❌';
+                    const statusText = result.status === 'success' ? 'Success' : 'Failed';
+                    resultsHtml += `
+                        <div style="margin: 5px 0; padding: 5px; background: ${result.status === 'success' ? '#d4edda' : '#f8d7da'}; border-radius: 3px; font-size: 0.9em;">
+                            ${statusIcon} <strong>${result.original_filename}</strong> - ${statusText}
+                            ${result.status === 'failed' ? `<br><small style="color: #721c24;">${result.error_message}</small>` : ''}
+                        </div>
+                    `;
+                });
+                batchResults.innerHTML = resultsHtml;
+            }
+        } else {
+            // Single file mode
+            headerTitle.textContent = 'Converting Your File';
+            headerSubtitle.textContent = 'Please wait while we convert your PowerPoint to PDF';
+        }
+
+        // Handle completion states
+        if (status.status === 'completed' || status.status === 'completed_with_errors') {
             spinner.style.display = 'none';
             completedSection.style.display = 'block';
             downloadBtn.href = `/download/${conversionId}`;
+
+            // Update success message based on results
+            if (status.batch_mode) {
+                if (status.status === 'completed_with_errors') {
+                    successMessage.innerHTML = `
+                        <strong>Batch conversion completed with some errors!</strong><br>
+                        ${status.completed_files} files converted successfully, ${status.failed_files} files failed.<br>
+                        You can download the successful conversions.
+                    `;
+                    successMessage.className = 'alert alert-warning';
+                } else {
+                    successMessage.innerHTML = `
+                        <strong>All files converted successfully!</strong><br>
+                        ${status.completed_files} files are ready for download.
+                    `;
+                }
+
+                // Show batch download button
+                if (status.completed_files > 1) {
+                    downloadBtn.textContent = '📥 Download All as ZIP';
+                    batchDownloadSection.style.display = 'block';
+                } else {
+                    batchDownloadSection.style.display = 'none';
+                }
+
+                // Create individual download buttons
+                createIndividualDownloadButtons(status.results);
+
+            } else {
+                successMessage.innerHTML = `
+                    <strong>Conversion completed successfully!</strong><br>
+                    Your PDF file is ready for download.
+                `;
+                downloadBtn.textContent = '📥 Download PDF';
+                batchDownloadSection.style.display = 'block';
+                individualDownloads.style.display = 'none';
+            }
+
             clearInterval(pollInterval);
         } else if (status.status === 'error') {
             spinner.style.display = 'none';
             errorSection.style.display = 'block';
             errorMessage.innerHTML = `<strong>Error:</strong> ${status.message || 'Unknown error occurred'}`;
             clearInterval(pollInterval);
+        }
+    }
+
+    function createIndividualDownloadButtons(results) {
+        if (!results || results.length === 0) return;
+
+        // Show individual downloads section
+        individualDownloads.style.display = 'block';
+
+        // Clear existing download list
+        downloadList.innerHTML = '';
+
+        // Create download button for each successful file
+        results.forEach((result, index) => {
+            if (result.status === 'success') {
+                const downloadItem = document.createElement('div');
+                downloadItem.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin: 10px 0;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                    border: 1px solid #dee2e6;
+                `;
+
+                downloadItem.innerHTML = `
+                    <div style="flex: 1;">
+                        <strong>${result.original_filename}</strong><br>
+                        <small style="color: #666;">→ ${result.pdf_filename}</small>
+                    </div>
+                    <a href="/download/${conversionId}/${index}"
+                       class="btn btn-sm"
+                       style="margin-left: 10px; padding: 5px 15px; font-size: 0.9em;">
+                        📥 Download PDF
+                    </a>
+                `;
+
+                downloadList.appendChild(downloadItem);
+            }
+        });
+
+        // If no successful files, hide the section
+        if (downloadList.children.length === 0) {
+            individualDownloads.style.display = 'none';
         }
     }
     
